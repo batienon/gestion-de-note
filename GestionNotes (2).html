@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1565C0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>GestionNotes — Moyennes & Classement</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --primary: #1565C0; --primary-light: #E3F2FD; --primary-dark: #0D47A1;
+  --accent: #FFB300; --success: #2E7D32; --success-light: #E8F5E9;
+  --danger: #C62828; --danger-light: #FFEBEE;
+  --gold: #F9A825; --silver: #78909C; --bronze: #8D6E63;
+  --text: #1A1A2E; --text-muted: #546E7A;
+  --bg: #F5F7FA; --card: #FFFFFF; --border: #E0E7EF;
+  --radius: 14px; --shadow: 0 2px 12px rgba(21,101,192,0.10);
+}
+html, body { height:100%; width:100%; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+body { padding-bottom:80px; }
+.screen { display:none; flex-direction:column; min-height:100vh; }
+.screen.active { display:flex; }
+.header { background:var(--primary); color:white; padding:18px 16px 14px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.18); }
+.header h1 { font-size:18px; font-weight:700; }
+.header p { font-size:12px; opacity:0.8; margin-top:2px; }
+.header-row { display:flex; align-items:center; justify-content:space-between; }
+.progress-bar { height:4px; background:rgba(255,255,255,0.3); margin-top:10px; border-radius:2px; }
+.progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width 0.4s; }
+.content { padding:16px; flex:1; }
+.card { background:var(--card); border-radius:var(--radius); border:1px solid var(--border); padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.card-title { font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.9px; margin-bottom:10px; }
+input[type=text], input[type=number], select {
+  width:100%; padding:11px 13px; border:1.5px solid var(--border);
+  border-radius:10px; font-size:15px; color:var(--text); background:#fff;
+  outline:none; transition:border 0.2s; -webkit-appearance:none; appearance:none;
+}
+input:focus, select:focus { border-color:var(--primary); }
+input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; background:var(--primary-light); outline:none; border:none; padding:0; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:var(--primary); cursor:pointer; }
+.tags-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.tag { background:var(--primary-light); color:var(--primary-dark); border-radius:20px; padding:6px 14px; font-size:13px; font-weight:500; display:flex; align-items:center; gap:6px; cursor:pointer; border:1.5px solid transparent; transition:all 0.15s; user-select:none; }
+.tag.selected { background:var(--primary); color:white; border-color:var(--primary-dark); }
+.tag-del { background:none; border:none; color:rgba(255,255,255,0.7); font-size:16px; cursor:pointer; }
+.eleve-item { display:flex; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); }
+.eleve-item:last-child { border-bottom:none; }
+.eleve-num { width:28px; height:28px; border-radius:50%; background:var(--primary-light); color:var(--primary); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.eleve-name { flex:1; margin-left:10px; font-size:15px; }
+.eleve-del { background:none; border:none; color:#ccc; font-size:20px; cursor:pointer; padding:4px 8px; }
+.btn { width:100%; padding:14px; border-radius:var(--radius); font-size:16px; font-weight:700; border:none; cursor:pointer; transition:transform 0.1s,opacity 0.1s; user-select:none; }
+.btn:active { transform:scale(0.97); opacity:0.88; }
+.btn-primary { background:var(--primary); color:white; }
+.btn-secondary { background:var(--card); color:var(--primary); border:2px solid var(--primary); }
+.btn-success { background:var(--success); color:white; }
+.btn-sm { padding:9px 16px; font-size:14px; width:auto; border-radius:10px; font-weight:600; }
+.btn-row { display:flex; gap:10px; }
+.btn-row .btn { flex:1; }
+.add-row { display:flex; gap:8px; margin-top:10px; }
+.add-row input { flex:1; }
+.divider { height:1px; background:var(--border); margin:12px 0; }
+
+/* BARÈME CONFIG */
+.bareme-row { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--border); }
+.bareme-row:last-child { border-bottom:none; }
+.bareme-mat { flex:1; font-size:14px; font-weight:500; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bareme-sel { width:95px; padding:8px 8px; font-size:14px; font-weight:700; color:var(--primary); border-color:var(--primary-light); flex-shrink:0; }
+.bareme-custom { width:72px; padding:8px 6px; font-size:14px; font-weight:700; color:var(--primary); text-align:center; flex-shrink:0; }
+
+/* SAISIE */
+.note-header { background:var(--primary); color:white; border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; display:flex; align-items:center; gap:12px; }
+.note-header .avatar { width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,0.22); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; flex-shrink:0; }
+.note-header .info h2 { font-size:17px; font-weight:700; }
+.note-header .info p { font-size:12px; opacity:0.8; margin-top:2px; }
+.note-row { display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--border); }
+.note-row:last-child { border-bottom:none; }
+.note-mat { flex:1; font-size:14px; font-weight:500; }
+.note-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.note-wrap input { width:72px; text-align:center; font-size:17px; font-weight:700; padding:8px 6px; }
+.note-bareme-lbl { font-size:11px; color:var(--text-muted); font-weight:600; }
+.nav-eleves { display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:14px; }
+.nav-counter { font-size:13px; color:var(--text-muted); font-weight:500; }
+.nav-btn { background:var(--primary-light); color:var(--primary); border:none; border-radius:8px; padding:8px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+.nav-btn:disabled { opacity:0.3; cursor:default; }
+
+/* CLASSEMENT */
+.rank-card { border-radius:var(--radius); padding:13px 14px; margin-bottom:10px; border:1.5px solid var(--border); background:var(--card); display:flex; align-items:center; gap:12px; position:relative; box-shadow:var(--shadow); }
+.rank-card.top1 { border-color:var(--gold); background:#FFFDE7; }
+.rank-card.top2 { border-color:var(--silver); background:#ECEFF1; }
+.rank-card.top3 { border-color:var(--bronze); background:#EFEBE9; }
+.rank-card.execo { border-color:var(--danger); background:var(--danger-light); }
+.rank-badge { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; flex-shrink:0; }
+.top1 .rank-badge { background:var(--gold); color:white; }
+.top2 .rank-badge { background:var(--silver); color:white; }
+.top3 .rank-badge { background:var(--bronze); color:white; }
+.execo .rank-badge { background:var(--danger); color:white; font-size:18px; }
+.rank-badge.normal { background:var(--primary-light); color:var(--primary); font-size:13px; }
+.rank-info { flex:1; min-width:0; }
+.rank-name { font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rank-details { font-size:11px; color:var(--text-muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rank-moy { font-size:21px; font-weight:800; color:var(--primary); flex-shrink:0; }
+.top1 .rank-moy { color:#E65100; }
+.top2 .rank-moy { color:var(--silver); }
+.top3 .rank-moy { color:var(--bronze); }
+.execo .rank-moy { color:var(--danger); }
+.execo-label { position:absolute; top:-1px; right:12px; background:var(--danger); color:white; font-size:10px; font-weight:700; padding:2px 9px; border-radius:0 0 7px 7px; letter-spacing:0.5px; }
+.stats-row { display:flex; gap:8px; margin-bottom:16px; }
+.stat-box { flex:1; background:var(--card); border-radius:12px; border:1px solid var(--border); padding:10px 8px; text-align:center; }
+.stat-box .s-val { font-size:22px; font-weight:800; color:var(--primary); }
+.stat-box .s-lab { font-size:10px; color:var(--text-muted); margin-top:2px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.stat-box.danger .s-val { color:var(--danger); }
+.stat-box.success .s-val { color:var(--success); }
+.section-title { font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; }
+.bottom-bar { position:fixed; bottom:0; left:0; right:0; background:white; border-top:1px solid var(--border); padding:10px 16px 20px; z-index:200; box-shadow:0 -2px 10px rgba(0,0,0,0.06); }
+#toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(30,30,30,0.92); color:white; padding:10px 22px; border-radius:22px; font-size:14px; font-weight:500; z-index:999; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; }
+#toast.show { opacity:1; }
+#splash { position:fixed; inset:0; background:var(--primary); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; color:white; gap:14px; transition:opacity 0.5s; }
+#splash .logo { font-size:64px; animation:bounce 0.6s ease; }
+#splash h1 { font-size:28px; font-weight:800; }
+#splash p { font-size:14px; opacity:0.75; }
+#splash .ver { font-size:11px; opacity:0.45; margin-top:30px; }
+@keyframes bounce { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+.empty-state { text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; }
+.empty-state .ico { font-size:36px; margin-bottom:10px; }
+.info-box { background:var(--primary-light); border:1px solid var(--primary); border-radius:12px; padding:12px 14px; margin-bottom:12px; font-size:13px; color:var(--primary-dark); line-height:1.6; }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logo">📚</div>
+  <h1>GestionNotes</h1>
+  <p>Calcul de moyennes &amp; classement</p>
+  <div class="ver">v2.0 — Barèmes personnalisables</div>
+</div>
+<div id="toast"></div>
+
+<!-- ══════════════════════════════
+     ÉCRAN 1 : CONFIGURATION
+══════════════════════════════ -->
+<div class="screen" id="screen1">
+  <div class="header">
+    <div class="header-row"><h1>📚 GestionNotes</h1></div>
+    <p>Étape 1 sur 4 — Configuration de la classe</p>
+    <div class="progress-bar"><div class="progress-fill" style="width:25%"></div></div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">🏫 Nom de la classe</div>
+      <input type="text" id="classe-nom" placeholder="Ex: 3ème A, CM2, Terminale S..." maxlength="40"/>
+    </div>
+    <div class="card">
+      <div class="card-title">⚠️ Seuil d'échec</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+        <input type="range" id="seuil-range" min="20" max="70" value="50" oninput="updateSeuil(this.value)">
+        <div style="text-align:center;flex-shrink:0;">
+          <div id="seuil-val" style="font-size:20px;font-weight:800;color:var(--danger);">50%</div>
+          <div style="font-size:11px;color:var(--text-muted);">de la note max</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);">Élèves en dessous de ce seuil seront marqués <strong>ÉCHEC</strong></p>
+    </div>
+    <div class="card">
+      <div class="card-title">📖 Matières enseignées</div>
+      <div class="tags-list" id="matieres-tags"></div>
+      <div class="add-row">
+        <input type="text" id="new-matiere" placeholder="Autre matière..." maxlength="30"/>
+        <button class="btn btn-primary btn-sm" onclick="addMatiere()">+ Ajouter</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">👨‍🎓 Liste des élèves</div>
+      <div id="eleves-list"><div class="empty-state"><div class="ico">👤</div>Aucun élève ajouté</div></div>
+      <div style="height:1px;background:var(--border);margin:12px 0;"></div>
+      <div class="add-row">
+        <input type="text" id="new-eleve" placeholder="Nom et prénom de l'élève..." maxlength="50"/>
+        <button class="btn btn-primary btn-sm" onclick="addEleve()">+ Ajouter</button>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="btn btn-primary" onclick="goToBaremes()">Suivant — Définir les barèmes →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     ÉCRAN 1B : BARÈMES
+══════════════════════════════ -->
+<div class="screen" id="screen1b">
+  <div class="header">
+    <div class="header-row"><h1>🎯 Barèmes des notes</h1></div>
+    <p>Étape 2 sur 4 — Choisissez le barème de chaque matière</p>
+    <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+  </div>
+  <div class="content">
+    <div class="info-box">
+      💡 Choisissez <strong>/20, /10, /5</strong> ou entrez un barème libre (ex: /100).<br>
+      Toutes les notes seront <strong>ramenées sur 20</strong> pour calculer la moyenne finale.
+    </div>
+    <div class="card">
+      <div class="card-title">📐 Barème par matière</div>
+      <div id="bareme-list"></div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showScreen('screen1')">← Retour</button>
+      <button class="btn btn-primary" onclick="goToSaisie()">Suivant — Saisir les notes →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     ÉCRAN 2 : SAISIE DES NOTES
+══════════════════════════════ -->
+<div class="screen" id="screen2">
+  <div class="header">
+    <div class="header-row">
+      <h1>✏️ Saisie des notes</h1>
+      <span id="progress-text" style="font-size:14px;font-weight:700;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:12px;">1/1</span>
+    </div>
+    <p id="header-classe-2" style="font-size:12px;opacity:0.75;margin-top:2px;"></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:75%"></div></div>
+  </div>
+  <div class="content">
+    <div class="nav-eleves">
+      <button class="nav-btn" id="btn-prev" onclick="prevEleve()">◀ Préc.</button>
+      <span class="nav-counter" id="nav-counter">Élève 1 sur 1</span>
+      <button class="nav-btn" id="btn-next" onclick="nextEleve()">Suiv. ▶</button>
+    </div>
+    <div class="note-header">
+      <div class="avatar" id="note-avatar">?</div>
+      <div class="info">
+        <h2 id="note-nom">Élève</h2>
+        <p id="note-status">Saisir les notes ci-dessous</p>
+      </div>
+    </div>
+    <div class="card"><div id="notes-list"></div></div>
+  </div>
+  <div class="bottom-bar">
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showScreen('screen1b')">← Retour</button>
+      <button class="btn btn-success" onclick="calculer()">Calculer &amp; Classer ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     ÉCRAN 3 : CLASSEMENT
+══════════════════════════════ -->
+<div class="screen" id="screen3">
+  <div class="header">
+    <div class="header-row"><h1>🏆 Classement final</h1></div>
+    <p id="header-classe-3" style="font-size:12px;opacity:0.75;margin-top:2px;"></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+  </div>
+  <div class="content">
+    <div class="stats-row">
+      <div class="stat-box"><div class="s-val" id="stat-total">0</div><div class="s-lab">Élèves</div></div>
+      <div class="stat-box success"><div class="s-val" id="stat-reussi">0</div><div class="s-lab">Reçus</div></div>
+      <div class="stat-box danger"><div class="s-val" id="stat-echec">0</div><div class="s-lab">Échecs</div></div>
+      <div class="stat-box"><div class="s-val" id="stat-moy-classe">0</div><div class="s-lab">Moy./20</div></div>
+    </div>
+    <div id="classement-list"></div>
+    <div style="height:10px;"></div>
+  </div>
+  <div class="bottom-bar">
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showScreen('screen2')" style="flex:0.6;">← Notes</button>
+      <button class="btn btn-primary" onclick="reset()">🔄 Nouvelle session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MATIERES_DEFAULT = ['Mathématiques','Français','Anglais','Histoire-Géo','SVT','Physique-Chimie','EPS','Philosophie','Informatique'];
+
+let matieres   = ['Mathématiques','Français','Anglais'];
+let baremes    = {};  // { "Mathématiques": 20 }
+let eleves     = [];
+let notes      = {};  // { "Nom": { "Matière": valeur } }
+let currentIdx = 0;
+let seuilPct   = 50;
+let nomClasse  = '';
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+let toastTimer;
+function toast(msg) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+function updateSeuil(v) {
+  document.getElementById('seuil-val').textContent = v + '%';
+}
+
+// ── MATIÈRES
+function initMatieresTags() {
+  const el = document.getElementById('matieres-tags');
+  el.innerHTML = '';
+  MATIERES_DEFAULT.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'tag' + (matieres.includes(m) ? ' selected' : '');
+    div.textContent = m;
+    div.onclick = () => toggleMatiere(m, div);
+    el.appendChild(div);
+  });
+  matieres.filter(m => !MATIERES_DEFAULT.includes(m)).forEach(m => el.appendChild(makeCustomTag(m)));
+}
+function makeCustomTag(m) {
+  const div = document.createElement('div');
+  div.className = 'tag selected';
+  const sp = document.createElement('span'); sp.textContent = m;
+  const btn = document.createElement('button'); btn.className='tag-del'; btn.textContent='×';
+  btn.onclick = e => { e.stopPropagation(); matieres=matieres.filter(x=>x!==m); div.remove(); };
+  div.appendChild(sp); div.appendChild(btn);
+  return div;
+}
+function toggleMatiere(m, el) {
+  if (matieres.includes(m)) { matieres=matieres.filter(x=>x!==m); el.classList.remove('selected'); }
+  else { matieres.push(m); el.classList.add('selected'); }
+}
+function addMatiere() {
+  const inp = document.getElementById('new-matiere');
+  const val = inp.value.trim();
+  if (!val) { toast('Entrez le nom d\'une matière'); return; }
+  if (matieres.map(m=>m.toLowerCase()).includes(val.toLowerCase())) { toast('Matière déjà dans la liste'); return; }
+  matieres.push(val); inp.value='';
+  document.getElementById('matieres-tags').appendChild(makeCustomTag(val));
+  toast('✓ ' + val + ' ajoutée');
+}
+
+// ── ÉLÈVES
+function renderEleves() {
+  const el = document.getElementById('eleves-list');
+  if (!eleves.length) { el.innerHTML='<div class="empty-state"><div class="ico">👤</div>Aucun élève ajouté</div>'; return; }
+  el.innerHTML='';
+  eleves.forEach((e,i) => {
+    const d = document.createElement('div'); d.className='eleve-item';
+    d.innerHTML=`<div class="eleve-num">${i+1}</div><span class="eleve-name">${e}</span><button class="eleve-del" onclick="delEleve(${i})">×</button>`;
+    el.appendChild(d);
+  });
+}
+function addEleve() {
+  const inp = document.getElementById('new-eleve');
+  const val = inp.value.trim();
+  if (!val) { toast('Entrez le nom de l\'élève'); return; }
+  if (eleves.map(e=>e.toLowerCase()).includes(val.toLowerCase())) { toast('Élève déjà dans la liste'); return; }
+  eleves.push(val); inp.value='';
+  renderEleves(); toast('✓ ' + val + ' ajouté(e)');
+}
+function delEleve(i) { const n=eleves[i]; eleves.splice(i,1); delete notes[n]; renderEleves(); }
+
+// ── BARÈMES
+function goToBaremes() {
+  if (!matieres.length) { toast('⚠ Sélectionnez au moins une matière'); return; }
+  if (!eleves.length)   { toast('⚠ Ajoutez au moins un élève'); return; }
+  seuilPct  = parseInt(document.getElementById('seuil-range').value);
+  nomClasse = document.getElementById('classe-nom').value.trim() || 'Ma classe';
+  matieres.forEach(m => { if (!baremes[m]) baremes[m] = 20; });
+  renderBaremes();
+  showScreen('screen1b');
+}
+
+function renderBaremes() {
+  const list = document.getElementById('bareme-list');
+  list.innerHTML = '';
+  matieres.forEach(m => {
+    const b = baremes[m] || 20;
+    const isCustom = ![20,10,5,100].includes(b);
+    const row = document.createElement('div'); row.className='bareme-row';
+
+    const lbl = document.createElement('span'); lbl.className='bareme-mat'; lbl.textContent=m;
+
+    const sel = document.createElement('select'); sel.className='bareme-sel';
+    sel.innerHTML=`
+      <option value="20"     ${b===20&&!isCustom?'selected':''}>/20</option>
+      <option value="10"     ${b===10?'selected':''}>/10</option>
+      <option value="5"      ${b===5?'selected':''}>/5</option>
+      <option value="100"    ${b===100?'selected':''}>/100</option>
+      <option value="custom" ${isCustom?'selected':''}>Autre...</option>`;
+
+    const cinp = document.createElement('input');
+    cinp.type='number'; cinp.min='1'; cinp.max='9999';
+    cinp.className='bareme-custom'; cinp.placeholder='Ex: 40';
+    cinp.value = isCustom ? b : '';
+    cinp.style.display = isCustom ? 'block' : 'none';
+    cinp.oninput = () => { const v=parseInt(cinp.value); if(v>0) baremes[m]=v; };
+
+    sel.onchange = () => {
+      if (sel.value==='custom') { cinp.style.display='block'; cinp.focus(); baremes[m]=parseInt(cinp.value)||20; }
+      else { cinp.style.display='none'; baremes[m]=parseInt(sel.value); }
+    };
+
+    row.appendChild(lbl); row.appendChild(sel); row.appendChild(cinp);
+    list.appendChild(row);
+  });
+}
+
+// ── SAISIE
+function goToSaisie() {
+  let ok=true;
+  matieres.forEach(m => { if (!baremes[m]||baremes[m]<1) { toast('⚠ Barème invalide : '+m); ok=false; } });
+  if (!ok) return;
+  document.getElementById('header-classe-2').textContent = nomClasse;
+  document.getElementById('header-classe-3').textContent = nomClasse;
+  eleves.forEach(e => {
+    if (!notes[e]) notes[e]={};
+    matieres.forEach(m => { if (notes[e][m]===undefined) notes[e][m]=''; });
+  });
+  currentIdx=0; showScreen('screen2'); renderNoteEleve();
+}
+
+function renderNoteEleve() {
+  const e = eleves[currentIdx];
+  document.getElementById('note-avatar').textContent = e.charAt(0).toUpperCase();
+  document.getElementById('note-nom').textContent    = e;
+  document.getElementById('nav-counter').textContent = `Élève ${currentIdx+1} sur ${eleves.length}`;
+  document.getElementById('progress-text').textContent = `${currentIdx+1}/${eleves.length}`;
+  document.getElementById('btn-prev').disabled = currentIdx===0;
+  document.getElementById('btn-next').disabled = currentIdx===eleves.length-1;
+
+  const filled = matieres.filter(m=>notes[e][m]!==''&&notes[e][m]!==undefined).length;
+  document.getElementById('note-status').textContent =
+    filled===0 ? 'Aucune note saisie' :
+    filled===matieres.length ? '✓ Toutes les notes saisies' :
+    `${filled} / ${matieres.length} notes saisies`;
+
+  const list = document.getElementById('notes-list');
+  list.innerHTML='';
+  matieres.forEach(m => {
+    const b   = baremes[m]||20;
+    const val = (notes[e][m]!==undefined&&notes[e][m]!=='') ? notes[e][m] : '';
+    const row = document.createElement('div'); row.className='note-row';
+    row.innerHTML=`
+      <span class="note-mat">${m}</span>
+      <div class="note-wrap">
+        <input type="number" min="0" max="${b}" step="0.25"
+          value="${val}" placeholder="—"
+          data-eleve="${e}" data-matiere="${m}" data-max="${b}"
+          oninput="saveNote(this)" style="width:72px;text-align:center;"/>
+        <div class="note-bareme-lbl">/ ${b}</div>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function saveNote(inp) {
+  const e=inp.dataset.eleve, m=inp.dataset.matiere, max=parseFloat(inp.dataset.max);
+  let v=inp.value;
+  if (v!=='') {
+    v=parseFloat(v);
+    if(v<0){v=0;inp.value=0;}
+    if(v>max){v=max;inp.value=max;}
+  }
+  notes[e][m]=v;
+  const filled=matieres.filter(mat=>notes[e][mat]!==''&&notes[e][mat]!==undefined).length;
+  document.getElementById('note-status').textContent=
+    filled===0?'Aucune note saisie':
+    filled===matieres.length?'✓ Toutes les notes saisies':
+    `${filled} / ${matieres.length} notes saisies`;
+}
+
+function prevEleve(){if(currentIdx>0){currentIdx--;renderNoteEleve();}}
+function nextEleve(){if(currentIdx<eleves.length-1){currentIdx++;renderNoteEleve();}}
+
+// ── CALCUL
+function calculer() {
+  const seuilNote=(seuilPct/100)*20;
+  const resultats=eleves.map(e=>{
+    const notes20=matieres.map(m=>{
+      const v=notes[e][m];
+      if(v===''||v===undefined||v===null)return null;
+      return (parseFloat(v)/( baremes[m]||20))*20;
+    }).filter(v=>v!==null);
+    const moy=notes20.length>0?notes20.reduce((a,b)=>a+b,0)/notes20.length:0;
+    return {
+      nom:e,
+      moy:Math.round(moy*100)/100,
+      detail:matieres.map(m=>{
+        const v=notes[e][m];
+        if(v===''||v===undefined)return null;
+        return m.substring(0,5)+': '+parseFloat(v).toFixed(1)+'/'+( baremes[m]||20);
+      }).filter(Boolean).join(' · ')
+    };
+  });
+  resultats.sort((a,b)=>b.moy-a.moy);
+
+  const reussis=resultats.filter(r=>r.moy>=seuilNote);
+  const echecs =resultats.filter(r=>r.moy<seuilNote);
+  const moyC   =resultats.length?resultats.reduce((a,b)=>a+b.moy,0)/resultats.length:0;
+
+  document.getElementById('stat-total').textContent   =resultats.length;
+  document.getElementById('stat-reussi').textContent  =reussis.length;
+  document.getElementById('stat-echec').textContent   =echecs.length;
+  document.getElementById('stat-moy-classe').textContent=moyC.toFixed(1);
+
+  const list=document.getElementById('classement-list');
+  list.innerHTML='';
+
+  function card(r,rank,isEchec){
+    const cls=isEchec?'execo':rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
+    const bdg=isEchec?'⚠':rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+    const nc =(!isEchec&&rank>3)?'normal':'';
+    return `<div class="rank-card ${cls}">
+      ${isEchec?'<div class="execo-label">ÉCHEC</div>':''}
+      <div class="rank-badge ${nc}">${bdg}</div>
+      <div class="rank-info">
+        <div class="rank-name">${r.nom}</div>
+        <div class="rank-details">${r.detail}</div>
+      </div>
+      <div class="rank-moy">${r.moy.toFixed(2)}<span style="font-size:11px;opacity:0.6;">/20</span></div>
+    </div>`;
+  }
+
+  if(reussis.length){
+    list.innerHTML+=`<div class="section-title">✅ Élèves reçus — ${reussis.length} élève${reussis.length>1?'s':''}</div>`;
+    reussis.forEach((r,i)=>list.innerHTML+=card(r,i+1,false));
+  }
+  if(echecs.length){
+    list.innerHTML+=`<div class="section-title">❌ Échecs — en dessous de ${seuilPct}% = ${seuilNote.toFixed(1)}/20</div>`;
+    echecs.forEach(r=>list.innerHTML+=card(r,0,true));
+  }
+  showScreen('screen3');
+}
+
+// ── RESET
+function reset(){
+  if(!confirm('Nouvelle session ? Les données seront effacées.'))return;
+  eleves=[];notes={};baremes={};currentIdx=0;
+  matieres=['Mathématiques','Français','Anglais'];
+  document.getElementById('classe-nom').value='';
+  document.getElementById('seuil-range').value='50';
+  updateSeuil(50);
+  renderEleves();initMatieresTags();showScreen('screen1');
+}
+
+// ── INIT
+document.getElementById('new-eleve').addEventListener('keydown',e=>{if(e.key==='Enter')addEleve();});
+document.getElementById('new-matiere').addEventListener('keydown',e=>{if(e.key==='Enter')addMatiere();});
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    const sp=document.getElementById('splash');
+    sp.style.opacity='0';
+    setTimeout(()=>sp.style.display='none',500);
+    initMatieresTags();renderEleves();showScreen('screen1');
+  },1600);
+});
+</script>
+</body>
+</html>
